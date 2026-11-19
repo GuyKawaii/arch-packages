@@ -1,0 +1,95 @@
+# Early warnings; never publishes anything.
+#
+#   canary (weekly)       build and smoke-test every package against today's Arch,
+#                         so a breaking Arch change shows up before an update needs it
+#   key-expiry (monthly)  open an issue when the signing key expires within 60 days
+#
+# A failed run emails the repository owner (GitHub's default notification).
+name: maintenance
+
+on:
+  schedule:
+    - cron: '41 4 * * 3'   # canary: Wednesdays
+    - cron: '17 6 1 * *'   # key-expiry: first of the month
+  workflow_dispatch:
+
+permissions: {}
+
+defaults:
+  run:
+    shell: bash
+
+concurrency:
+  group: maintenance-${{ github.event.schedule || 'manual' }}
+  cancel-in-progress: false
+
+jobs:
+  canary:
+    if: github.event_name == 'workflow_dispatch' || github.event.schedule == '41 4 * * 3'
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    container: archlinux:base-devel
+    permissions:
+      contents: read
+    steps:
+      - name: Install git for checkout
+        run: pacman -Syu --noconfirm --needed git
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Prepare container
+        run: bash ci/container-setup.sh namcap
+
+      - name: Build everything
+        run: |
+          mkdir -p "$RUNNER_TEMP/published"
+          source ci/lib.sh
+          fetch_db "$RUNNER_TEMP/published" || true
+          bash ci/plan.sh "$RUNNER_TEMP/published" "" all > "$RUNNER_TEMP/plan"
+          mapfile -t dirs < "$RUNNER_TEMP/plan"
+          echo "Build order: ${dirs[*]}"
+          OUT=out bash ci/build.sh "${dirs[@]}"
+
+      - name: Smoke test
+        run: OUT=out bash ci/smoke-test.sh
+
+  key-expiry:
+    if: github.event_name == 'workflow_dispatch' || github.event.schedule == '17 6 1 * *'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Check signing key expiry
+        env:
+          GH_TOKEN: ${{ github.token }}
+          WARN_DAYS: 60
+        run: |
+          GNUPGHOME=$(mktemp -d)
+          export GNUPGHOME
+          gpg --batch --quiet --import keys/guykawaii.asc
+          expires=$(gpg --with-colons --list-keys | awk -F: '/^pub/ {print $7; exit}')
+          if [[ -z $expires ]]; then
+            echo "Signing key has no expiry date."
+            exit 0
+          fi
+          days=$(( (expires - $(date +%s)) / 86400 ))
+          date=$(date -u -d "@$expires" +%F)
+          echo "Signing key expires $date ($days days)."
+          (( days > WARN_DAYS )) && exit 0
+          title="Signing key expires $date"
+          if [[ -n $(gh issue list --state open --search "in:title \"$title\"" --json number --jq '.[].number') ]]; then
+            echo "Issue already open."
+            exit 0
+          fi
+          gh issue create --title "$title" --body "The pacman signing key in \`keys/guykawaii.asc\` expires on $date ($days days). After that, pacman rejects packages from this repository.
+
+          Extend it with the backed-up private key (\`gpg --quick-set-expire <fingerprint> 2y\`), commit the new \`keys/guykawaii.asc\`, update the \`GPG_PRIVATE_KEY\` secret in the \`publish\` environment, and re-import the public key on each machine (\`sudo pacman-key --add keys/guykawaii.asc\`). See docs/setup.md."
