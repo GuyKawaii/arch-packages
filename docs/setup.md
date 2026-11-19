@@ -71,3 +71,10 @@ Server = https://github.com/GuyKawaii/arch-packages/releases/download/repo
 ```
 
 Then run `sudo pacman -Syu howdy`.
+
+## Signing key backup and renewal
+
+The private key and its revocation certificate are backed up in the owner's password manager, not in this repository.
+
+- **Renew** (the `maintenance` workflow opens an issue 60 days before expiry): import the backup, run `gpg --quick-set-expire 1DC977D7A2C06F2B1670111509E996AA6DD48778 2y`, commit the new public key to `keys/guykawaii.asc`, replace the `GPG_PRIVATE_KEY` secret in the `publish` environment, and re-import the public key on each machine with `sudo pacman-key --add keys/guykawaii.asc`.
+- **Revoke** (if the key may have leaked): `sudo pacman-key --import` the revocation certificate on each machine, then create a new key as described above.
