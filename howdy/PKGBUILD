@@ -3,7 +3,7 @@
 pkgname=howdy
 # renovate: datasource=github-releases depName=boltgolt/howdy
 pkgver=3.0.2
-pkgrel=1
+pkgrel=2
 pkgdesc="Windows Hello style facial authentication for Linux (PAM module)"
 arch=('x86_64')
 url="https://github.com/boltgolt/howdy"

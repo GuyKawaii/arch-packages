@@ -14,7 +14,7 @@ Each top-level folder holds one `PKGBUILD`. GitHub Actions builds the packages, 
 
 - **Source**: every package builds from an upstream release (its git tag). The `sha256sums` in the PKGBUILD pin the exact bytes, and the build fails if upstream ever changes a tag.
 - **Wait**: Renovate proposes a new upstream version only once it is at least 30 days old, and it skips prereleases. That gives bad or hijacked releases time to be noticed.
-- **Build**: packages are built from this repository on GitHub-hosted runners, in a clean `archlinux:base-devel` container, as a non-root user. They are checked with namcap and smoke-tested before anything is published.
+- **Build**: packages are built from this repository on GitHub-hosted runners, in a clean `archlinux:base-devel` container synced to [Omarchy's stable mirror](https://stable-mirror.omarchy.org), as a non-root user, so packages link against the same library versions an Omarchy system has. They are checked with namcap and smoke-tested before anything is published.
 - **Signature**: packages and the database are signed with our own GPG key. The key is stored as a GitHub secret that only the publish job on `main` can read. Fingerprint: `1DC977D7A2C06F2B1670111509E996AA6DD48778`.
 - **Repository rules**: `main` only changes through squash-merged PRs with a passing `build` check, with no bypass. Force pushes and deletion are blocked, and tags cannot be deleted or moved.
 
