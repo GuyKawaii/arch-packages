@@ -1,0 +1,74 @@
+# Finish Renovate's pkgver bumps. Renovate (the hosted app) only edits the
+# pkgver line; this resets pkgrel to 1, refreshes the checksums with
+# updpkgsums, regenerates .SRCINFO and pushes that to the PR branch.
+#
+# A push made with GITHUB_TOKEN starts no new workflow run, so the fixup commit
+# would never get a "build" check and automerge would wait forever. Instead,
+# after pushing, this dispatches build.yml on the branch (workflow_dispatch is
+# the one event GITHUB_TOKEN may trigger). That run reports "build" on the new
+# head commit and cancels the pull_request run on the unfixed commit (same
+# concurrency group). When nothing needs fixing, the normal pull_request run is
+# the check and nothing is dispatched.
+name: renovate-fixup
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions: {}
+
+defaults:
+  run:
+    shell: bash
+
+concurrency:
+  group: renovate-fixup-${{ github.head_ref }}
+  cancel-in-progress: true
+
+jobs:
+  fixup:
+    if: >-
+      startsWith(github.head_ref, 'renovate/') &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    container: archlinux:base-devel
+    permissions:
+      contents: write
+      actions: write
+    steps:
+      - name: Install git for checkout
+        run: pacman -Syu --noconfirm --needed git
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+
+      - name: Prepare container
+        run: bash ci/container-setup.sh github-cli pacman-contrib
+
+      - name: Fix pkgrel, checksums and .SRCINFO
+        id: fixup
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          bash ci/fixup.sh "origin/$BASE_REF"
+          if git diff --cached --quiet; then
+            echo "Nothing to fix."
+            echo pushed=false >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          git diff --cached --stat
+          git -c user.name='github-actions[bot]' \
+              -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
+              commit -m "chore: reset pkgrel, update checksums and .SRCINFO"
+          git push origin "HEAD:refs/heads/$GITHUB_HEAD_REF"
+          echo pushed=true >> "$GITHUB_OUTPUT"
+
+      - name: Build the fixed commit
+        if: steps.fixup.outputs.pushed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: gh workflow run build.yml --ref "$GITHUB_HEAD_REF"

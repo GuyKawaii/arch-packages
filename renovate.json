@@ -1,0 +1,47 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended", "helpers:pinGitHubActionDigests"],
+  "enabledManagers": ["custom.regex", "github-actions"],
+  "minimumReleaseAge": "30 days",
+  "internalChecksFilter": "strict",
+  "ignoreUnstable": true,
+  "respectLatest": true,
+  "automerge": true,
+  "automergeType": "pr",
+  "platformAutomerge": true,
+  "rebaseWhen": "behind-base-branch",
+  "gitIgnoredAuthors": ["41898282+github-actions[bot]@users.noreply.github.com"],
+  "labels": ["dependencies"],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "pkgver in PKGBUILDs, from the '# renovate:' comment on the line above",
+      "managerFilePatterns": ["/(^|/)PKGBUILD$/"],
+      "matchStrings": [
+        "# renovate: datasource=(?<datasource>[a-z-]+) depName=(?<depName>\\S+)\\s*\\n\\s*pkgver=(?<currentValue>\\S+)"
+      ],
+      "extractVersionTemplate": "^v?(?<version>.+)$"
+    }
+  ],
+  "packageRules": [
+    {
+      "description": "Upstream package versions: stable releases only, one PR per package",
+      "matchManagers": ["custom.regex"],
+      "allowedVersions": "!/(alpha|beta|rc|pre|dev|snapshot)/i",
+      "semanticCommitType": "feat",
+      "commitMessageTopic": "{{depName}}"
+    },
+    {
+      "description": "A new upstream major can change the build system; a human merges it",
+      "matchManagers": ["custom.regex"],
+      "matchUpdateTypes": ["major"],
+      "automerge": false
+    },
+    {
+      "description": "GitHub Actions: pinned to commit SHAs, grouped into one PR",
+      "matchManagers": ["github-actions"],
+      "groupName": "GitHub Actions",
+      "semanticCommitType": "ci"
+    }
+  ]
+}

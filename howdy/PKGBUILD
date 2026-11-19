@@ -1,0 +1,69 @@
+# Maintainer: Daniel
+
+pkgname=howdy
+# renovate: datasource=github-releases depName=boltgolt/howdy
+pkgver=3.0.2
+pkgrel=1
+pkgdesc="Windows Hello style facial authentication for Linux (PAM module)"
+arch=('x86_64')
+url="https://github.com/boltgolt/howdy"
+license=('MIT')
+depends=(
+	'gcc-libs'
+	'glibc'
+	'libevdev'
+	'libinih'
+	'pam'
+	'python'
+	'python-dlib'
+	'python-numpy'
+	'python-opencv'
+)
+makedepends=('meson' 'ninja')
+optdepends=(
+	'v4l-utils: list cameras with v4l2-ctl --list-devices'
+	'ffmpeg: ffmpeg recording_plugin (also needs the ffmpeg-python module)'
+)
+conflicts=('howdy-git' 'howdy-bin')
+backup=('etc/howdy/config.ini')
+install=howdy.install
+# Pinned dlib-models commit; bump together with the hashes below.
+_dlib_models=fd81b6308a6a73d4ce08859eb2f4b628a21e27a2
+source=(
+	"howdy-$pkgver.tar.gz::https://github.com/boltgolt/howdy/archive/refs/tags/v$pkgver.tar.gz"
+	"https://github.com/davisking/dlib-models/raw/$_dlib_models/dlib_face_recognition_resnet_model_v1.dat.bz2"
+	"https://github.com/davisking/dlib-models/raw/$_dlib_models/mmod_human_face_detector.dat.bz2"
+	"https://github.com/davisking/dlib-models/raw/$_dlib_models/shape_predictor_5_face_landmarks.dat.bz2"
+	"polkit-agent-helper-howdy.conf"
+)
+sha256sums=('7b52ec48acfe5bb610a2845f4d08eeb3724238e59f25bbd5cceab4d5d0ef8d05'
+            'abb1f61041e434465855ce81c2bd546e830d28bcbed8d27ffbe5bb408b11553a'
+            'db9e9e40f092c118d5eb3e643935b216838170793559515541c56a2b50d9fc84'
+            '6e787bbebf5c9efdb793f6cd1f023230c4413306605f24f299f12869f95aa472'
+            '2283fc4684751caa41e87023755bba5c3468475b6ed632b13a4ac6e9c748c512')
+
+build() {
+	# The meson project lives in the howdy/ subdir, not the repo root.
+	# arch-meson uses --wrap-mode=nodownload, so INIReader comes from libinih.
+	arch-meson "howdy-$pkgver/howdy" build
+	meson compile -C build
+}
+
+package() {
+	meson install -C build --destdir "$pkgdir"
+
+	# meson skips config.ini when the build host already has one and installs
+	# it 0744; always ship it, with sane permissions.
+	install -Dm644 "howdy-$pkgver/howdy/src/config.ini" "$pkgdir/etc/howdy/config.ini"
+
+	install -Dm644 -t "$pkgdir/usr/share/dlib-data" \
+		dlib_face_recognition_resnet_model_v1.dat \
+		mmod_human_face_detector.dat \
+		shape_predictor_5_face_landmarks.dat
+
+	install -Dm644 "howdy-$pkgver/LICENSE" "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+
+	# polkit 127+ sandboxes the agent helper away from the camera (boltgolt/howdy#1077)
+	install -Dm644 polkit-agent-helper-howdy.conf \
+		"$pkgdir/usr/lib/systemd/system/polkit-agent-helper@.service.d/10-howdy.conf"
+}
