@@ -2,6 +2,8 @@
 # Prepare an archlinux:base-devel container: full upgrade, extra tools,
 # an unprivileged "builder" user with passwordless sudo (makepkg -s needs it),
 # and the published guykawaii repo as a dependency source when it exists.
+# Builds use Omarchy's stable mirror (set by the workflow before checkout), so
+# packages link against the same library versions an Omarchy system has.
 # Usage (as root, from the repo root): ci/container-setup.sh [extra packages...]
 set -euo pipefail
 # shellcheck source=ci/lib.sh
@@ -24,7 +26,7 @@ if curl -fsIL --retry 3 -o /dev/null "$REPO_URL/$REPO_NAME.db"; then
 	printf '\n[%s]\nSigLevel = %s\nServer = %s\n' "$REPO_NAME" "$siglevel" "$REPO_URL" >>/etc/pacman.conf
 fi
 
-pacman -Syu --noconfirm --needed git "$@"
+pacman -Syuu --noconfirm --needed git "$@"
 
 # makepkg refuses to run as root.
 if ! id builder &>/dev/null; then

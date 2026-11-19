@@ -4,7 +4,7 @@
 pkgname=linux-enable-ir-emitter
 # renovate: datasource=github-releases depName=EmixamPP/linux-enable-ir-emitter
 pkgver=6.1.2
-pkgrel=1
+pkgrel=2
 pkgdesc="Enables infrared cameras that are not directly enabled out-of-the box"
 arch=('x86_64')
 url="https://github.com/EmixamPP/linux-enable-ir-emitter"

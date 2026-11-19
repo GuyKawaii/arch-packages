@@ -5,7 +5,7 @@ pkgname=python-dlib
 _pkgname=dlib
 # renovate: datasource=github-releases depName=davisking/dlib
 pkgver=20.0.1
-pkgrel=1
+pkgrel=2
 pkgdesc="Python bindings for dlib, a C++ machine learning toolkit (CPU-only)"
 arch=('x86_64')
 url="http://dlib.net/"
