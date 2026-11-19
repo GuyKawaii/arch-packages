@@ -6,6 +6,7 @@ Our own pacman repository, `[guykawaii]`, for Arch packages that are not in the 
 | --- | --- |
 | `howdy` | [boltgolt/howdy](https://github.com/boltgolt/howdy): face login for Linux (PAM) |
 | `python-dlib` | [davisking/dlib](https://github.com/davisking/dlib): Python bindings, CPU-only, needed by howdy. Built with AVX, so it needs a CPU from roughly 2013 or later |
+| `linux-enable-ir-emitter` | [EmixamPP/linux-enable-ir-emitter](https://github.com/EmixamPP/linux-enable-ir-emitter): turns on IR emitters that Linux leaves off (needed on many ASUS laptops for howdy). Patched to build against OpenCV 5 |
 
 Each top-level folder holds one `PKGBUILD`. GitHub Actions builds the packages, signs them and publishes them as assets of the rolling release [`repo`](https://github.com/GuyKawaii/arch-packages/releases/tag/repo).
 
