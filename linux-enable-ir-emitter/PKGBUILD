@@ -1,0 +1,33 @@
+# Maintainer: Daniel
+# Based on the AUR recipe by Iyán Méndez Veiga and contributors.
+
+pkgname=linux-enable-ir-emitter
+# renovate: datasource=github-releases depName=EmixamPP/linux-enable-ir-emitter
+pkgver=6.1.2
+pkgrel=1
+pkgdesc="Enables infrared cameras that are not directly enabled out-of-the box"
+arch=('x86_64')
+url="https://github.com/EmixamPP/linux-enable-ir-emitter"
+license=('MIT')
+depends=('fmt' 'gtk3' 'opencv' 'spdlog' 'yaml-cpp')
+makedepends=('argparse' 'meson' 'qt6-base' 'zlib')
+conflicts=('chicony-ir-toggle' 'linux-enable-ir-emitter-git')
+install=linux-enable-ir-emitter.install
+source=("$pkgname-$pkgver.tar.gz::https://github.com/EmixamPP/$pkgname/archive/refs/tags/$pkgver.tar.gz")
+sha256sums=('cf32e366745793fc9849409a845b799cb6fd467cf5553a08708b7e5078cd80e7')
+
+prepare() {
+	# Arch ships OpenCV 5 (opencv5.pc); 6.x only uses core/highgui/videoio APIs
+	# that are unchanged in 5.
+	sed -i "s/dependency('opencv4'/dependency('opencv5'/" "$pkgname-$pkgver/src/meson.build"
+}
+
+build() {
+	arch-meson "$pkgname-$pkgver" build
+	meson compile -C build
+}
+
+package() {
+	meson install -C build --destdir "$pkgdir"
+	install -Dm644 "$pkgname-$pkgver/LICENSE" "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}
